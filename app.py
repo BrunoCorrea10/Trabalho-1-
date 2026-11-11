@@ -36,15 +36,13 @@ def simular_sistema(dr_val, pkwh_val):
         # Sucção
         VelSuc = Q / (np.pi * Ds ** 2 / 4)
         ReSuc = VelSuc * ro * Ds / Mi
-        f_s = scipy.optimize.fsolve(lambda x: (np.sqrt(10) / 10) ** x - (2.51 / ReSuc) * x - (1 / (Ds / k)) / 3.7, 0.1)[
-            0]
+        f_s = scipy.optimize.fsolve(lambda x: (np.sqrt(10) / 10) ** x - (2.51 / ReSuc) * x - (1 / (Ds / k)) / 3.7, 0.1)[0]
         PcsTotal = ((1 / (f_s ** 2)) * (Ls / Ds) + Ks_total) * (VelSuc ** 2) / (2 * g)
 
         # Recalque
         VelReq = Q / (np.pi * dr_val ** 2 / 4)
         ReReq = VelReq * ro * dr_val / Mi
-        f_r = \
-        scipy.optimize.fsolve(lambda x: (np.sqrt(10) / 10) ** x - (2.51 / ReReq) * x - (1 / (dr_val / k)) / 3.7, 0.1)[0]
+        f_r = scipy.optimize.fsolve(lambda x: (np.sqrt(10) / 10) ** x - (2.51 / ReReq) * x - (1 / (dr_val / k)) / 3.7, 0.1)[0]
         PcrTotal = ((1 / (f_r ** 2)) * (Lr / dr_val) + Kr_total) * (VelReq ** 2) / (2 * g)
 
         # Carga, Potência e Consumo
@@ -147,8 +145,12 @@ st.markdown("---")
 # -------------------------------------------------------------
 # NAVEGAÇÃO POR ABAS
 # -------------------------------------------------------------
-tab1, tab2, tab3 = st.tabs(
-    ["📊 Gráficos do Sistema (Item 1)", "🔍 Minerador de Dados (Item 4)", "📈 Ciência de Dados (Item 5)"])
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Gráficos do Sistema (Item 1)",
+    "📈 Ponto de Operação (H × Q)",
+    "🔍 Minerador de Dados (Item 4)",
+    "🧪 Ciência de Dados (Item 5)"
+])
 
 # --- ABA 1: GRÁFICOS DO SISTEMA ---
 with tab1:
@@ -182,8 +184,67 @@ with tab1:
         ax2.legend()
         st.pyplot(fig2)
 
-# --- ABA 2: MINERADOR DE DADOS ---
+# --- ABA 2: PONTO DE OPERAÇÃO (H x Q) ---
 with tab2:
+    st.subheader("Ponto de Operação do Sistema ($Q_0, H_0$)")
+    st.markdown(
+        "Este gráfico ilustra o cruzamento entre a **Curva Característica da Bomba** e a "
+        "**Curva de Resistência do Sistema** para os diâmetros de $10\\text{ cm}$ e $15\\text{ cm}$."
+    )
+
+    q_plot = np.linspace(0.1, 60, 150)
+
+    H_shutoff = 75.0
+    a_bomba = 0.0125
+    H_bomba = H_shutoff - a_bomba * (q_plot ** 2)
+
+    H_estatica = 15.0
+    K_10 = 0.032
+    K_15 = 0.0063
+
+    H_sistema_10 = H_estatica + K_10 * (q_plot ** 2)
+    H_sistema_15 = H_estatica + K_15 * (q_plot ** 2)
+
+    fig_hq, ax_hq = plt.subplots(figsize=(9, 5))
+
+    ax_hq.plot(q_plot, H_bomba, color='#1f77b4', linewidth=2.5, label='Curva da Bomba $H(Q)$')
+    ax_hq.plot(q_plot, H_sistema_10, color='#d62728', linestyle='--', linewidth=2, label='Sistema ($D_r = 10\\text{ cm}$)')
+    ax_hq.plot(q_plot, H_sistema_15, color='#2ca02c', linewidth=2.5, label='Sistema ($D_r = 15\\text{ cm}$ - Selecionado)')
+
+    Q0_10 = np.sqrt((H_shutoff - H_estatica) / (a_bomba + K_10))
+    H0_10 = H_shutoff - a_bomba * (Q0_10 ** 2)
+
+    Q0_15 = np.sqrt((H_shutoff - H_estatica) / (a_bomba + K_15))
+    H0_15 = H_shutoff - a_bomba * (Q0_15 ** 2)
+
+    ax_hq.plot(Q0_10, H0_10, 'ro', markersize=8)
+    ax_hq.annotate(f'Ponto 10 cm\n({Q0_10:.1f} L/s, {H0_10:.1f} m)',
+                    xy=(Q0_10, H0_10), xytext=(Q0_10 + 2, H0_10 + 5),
+                    arrowprops=dict(facecolor='black', shrink=0.05, width=1, headwidth=6))
+
+    ax_hq.plot(Q0_15, H0_15, 'go', markersize=8)
+    ax_hq.annotate(f'Ponto 15 cm\n({Q0_15:.1f} L/s, {H0_15:.1f} m)',
+                    xy=(Q0_15, H0_15), xytext=(Q0_15 - 12, H0_15 - 12),
+                    arrowprops=dict(facecolor='green', shrink=0.05, width=1, headwidth=6))
+
+    ax_hq.set_xlabel('Vazão $Q$ (L/s)', fontsize=11)
+    ax_hq.set_ylabel('Altura Manométrica $H$ (m)', fontsize=11)
+    ax_hq.set_title('Interseção Head × Vazão: Determinação do Ponto de Operação', fontsize=12, fontweight='bold')
+    ax_hq.set_ylim(0, 90)
+    ax_hq.grid(True, linestyle=':', alpha=0.6)
+    ax_hq.legend(loc='upper right')
+
+    st.pyplot(fig_hq)
+
+    st.info(
+        "💡 **Leitura de Engenharia:** Note como o aumento do diâmetro de $10\\text{ cm}$ para $15\\text{ cm}$ "
+        "reduz a inclinação da curva de resistência do sistema (menos atrito). Isso move o ponto de operação "
+        "para uma **altura manométrica menor ($H_0$)**, reduzindo a potência exigida da bomba e gerando a "
+        "economia financeira por hora observada no painel principal."
+    )
+
+# --- ABA 3: MINERADOR DE DADOS ---
+with tab3:
     st.subheader("Minerador Dinâmico de Planilha / Banco de Dados")
     st.write("Filtre em tempo real a tabela de 41 pontos gerada pela simulação:")
 
@@ -205,8 +266,8 @@ with tab2:
         'Consumo_RShora': 'R$ {:.2f}'
     }), use_container_width=True)
 
-# --- ABA 3: CIÊNCIA DE DADOS ---
-with tab3:
+# --- ABA 4: CIÊNCIA DE DADOS ---
+with tab4:
     st.subheader("Análise de Correlação e Dispersão Multivariada")
     col_cd1, col_cd2 = st.columns(2)
 
